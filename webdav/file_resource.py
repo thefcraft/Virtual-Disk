@@ -53,18 +53,6 @@ class CustomFileResource(DAVNonCollection):
     def support_ranges(self) -> bool: return True # pyright: ignore[reportIncompatibleMethodOverride]
     def support_recursive_move(self, dest_path: str) -> bool: 
         return False
-        # return True
-    
-    # def move_recursive(self, dest_path: str) -> None: # pyright: ignore[reportIncompatibleMethodOverride]
-    #     if self.provider.is_readonly():
-    #         raise DAVError(HTTP_FORBIDDEN)
-        
-    #     paths: list[bytes] = abspath_to_paths(
-    #         dest_path.encode('utf-8')
-    #     )
-    #     self.root.rename(
-    #         src=self.abspath, dest=paths
-    #     )
     
     def get_content(self) -> BytesIO:
         """Open content as a stream for reading.

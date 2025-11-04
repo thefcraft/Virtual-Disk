@@ -140,21 +140,8 @@ class CustomFolderResource(DAVCollection):
         paths: list[bytes] = abspath_to_paths(
             dest_path.encode('utf-8')
         )
-        if is_move:
-            # self.root.rename(
-            #     src=self.abspath, dest=paths
-            # )
-            # self._move_deleted = True
-            self.root.makedirs(*paths, exist_ok=False)
-            return None
         
-        self.root.makedirs(*paths, exist_ok=False)
-        # chunk_size=1024*1024*32 # 32 MB at a time
-        
-        # self.root.copy_tree(
-        #     src=self.abspath, dest=paths,
-        #     overwrite=True, chunk_size=chunk_size
-        # )
+        self.root.makedirs(*paths, exist_ok=False)    
         
     def set_last_modified(self, dest_path: str, time_stamp: str, *, dry_run: bool) -> bool:
         """Set last modified time for destPath to timeStamp on epoch-format"""
