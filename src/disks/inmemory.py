@@ -5,8 +5,13 @@ from ..path import Directory
 
 from .. import protocol
 
+from typing import Self
+from types import TracebackType
+
 class InMemoryDisk(protocol.Disk):
     def __init__(self, config: Config) -> None:
+        self._closed: bool = False
+        
         root_inode = Inode(InodeMode.DIRECTORY)
         if len(root_inode.to_bytes(config)) != config.inode_size:
             raise ValueError(f"{config.inode_size=} is too small try={len(root_inode.to_bytes(config))}.")
@@ -42,3 +47,18 @@ class InMemoryDisk(protocol.Disk):
         return self.config.block_size * self.blocks_bitmap.free_count()
     def used_space(self) -> int: 
         return self.total_space() - self.free_space()
+    def reserved_space(self) -> int: 
+        return self.config.block_size # NOTE: we are storing inodes separately.
+    
+    @property
+    def closed(self) -> bool: return self._closed
+    def close(self) -> None: self._closed = True
+    def __enter__(self) -> Self: 
+        if self.closed:
+            raise ValueError("I/O operation on closed file")
+        return self
+    def __exit__(self, 
+                 exc_type: type[BaseException] | None, 
+                 exc_val: BaseException | None, 
+                 exc_tb: TracebackType | None) -> None: self.close()
+

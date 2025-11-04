@@ -7,6 +7,7 @@ from webdav.config import get_config
 
 from src.disk import InMemoryDisk, InFileDisk
 from src.config import Config
+from src.path import Directory
 
 import os
 
@@ -17,33 +18,9 @@ def format_size(size_bytes):
         size_bytes /= 1024
     return f"{size_bytes:.2f} PB"
 
-def main(readonly: bool = False, host: str = "0.0.0.0", port: int=8080) -> None:
-    basedir = os.path.dirname(os.path.abspath(__file__))
-    instance = os.path.join(basedir, 'instance')
-    if not os.path.exists(instance): os.mkdir(instance)
-    filepath = os.path.join(instance, 'disk.bin')
-    if not os.path.exists(filepath):
-        config = Config(
-            block_size=2048,
-            inode_size=64,
-            num_blocks=1024*64,
-            num_inodes=1024*128
-        )
-        disk = InFileDisk.new_disk(
-            filepath=filepath,
-            config=config
-        )
-    else:
-        disk = InFileDisk(
-            filepath=filepath
-        )
-    
-    print("TOTAL SPACE: ", format_size(disk.total_space()))
-    print("USED SPACE: ", format_size(disk.used_space()))
-    print("FREE SPACE: ", format_size(disk.free_space()))
-        
+def main(root: Directory, readonly: bool = False, host: str = "0.0.0.0", port: int=8080) -> None:
     config = get_config(
-        root=disk.root, readonly=readonly
+        root=root, readonly=readonly
     )
     
     config["host"] = host
@@ -71,4 +48,28 @@ def main(readonly: bool = False, host: str = "0.0.0.0", port: int=8080) -> None:
         server.stop()
         
 if __name__ == "__main__":
-    main()
+    basedir = os.path.dirname(os.path.abspath(__file__))
+    instance = os.path.join(basedir, 'instance')
+    if not os.path.exists(instance): os.mkdir(instance)
+    filepath = os.path.join(instance, 'disk.bin')
+    if not os.path.exists(filepath):
+        config = Config(
+            block_size=1024*2,
+            inode_size=64,
+            num_blocks=1024*128,
+            num_inodes=1024*256
+        )
+        disk = InFileDisk.new_disk(
+            filepath=filepath,
+            config=config
+        )
+    else:
+        disk = InFileDisk(
+            filepath=filepath
+        )
+    with disk:
+        print("TOTAL SPACE: ", format_size(disk.total_space()))
+        print("USED SPACE: ", format_size(disk.used_space()))
+        print("FREE SPACE: ", format_size(disk.free_space()))
+        print("RESERVED SPACE: ", format_size(disk.reserved_space()))
+        main(root=disk.root)

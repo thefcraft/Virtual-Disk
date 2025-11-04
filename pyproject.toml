@@ -11,8 +11,10 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "fastapi>=0.121.0",
     "mypy>=1.18.2",
     "pytest>=8.4.2",
+    "uvicorn>=0.38.0",
 ]
 
 [tool.mypy]

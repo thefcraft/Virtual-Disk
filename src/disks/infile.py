@@ -10,6 +10,7 @@ from .. import protocol
 import os
 
 from typing import Iterator, Self, BinaryIO
+from types import TracebackType
 
 SUPER_BLOCK_DATA_LENGTH = 12
 
@@ -178,12 +179,16 @@ class BlocksList(protocol.BlocksList):
 class InFileDisk(protocol.Disk):
     root: Directory
     file: BinaryIO
+    _reserved_space: int
     
-    def __init__(self, filepath: str) -> None:
-        if not os.path.exists(filepath):
-            raise FileNotFoundError(f"{filepath=} not exists.")
-        
-        self.file = open(filepath, "rb+")
+    def __init__(self, filepath: str | BinaryIO) -> None:
+        if isinstance(filepath, str):
+            if not os.path.exists(filepath):
+                raise FileNotFoundError(f"{filepath=} not exists.")    
+            self.file = open(filepath, "rb+")
+        else:
+            self.file = filepath
+        self._closed: bool = False
         self.config = load_config_from_file(self.file)
         
         len_config_bytes: int = self.file.tell()
@@ -202,11 +207,12 @@ class InFileDisk(protocol.Disk):
             header_prefix_size_required + 
             self.config.inode_size * self.config.num_inodes
         )
+        self._reserved_space = header_size_required
         
         disk_size = self.config.disk_size
-        if disk_size < header_size_required:
+        if disk_size < (header_size_required + self.config.block_size):
             raise ValueError(
-                f"{disk_size=} is too small try {header_size_required}, matbe disk is corrupted."
+                f"{disk_size=} is too small try {header_size_required + self.config.block_size}, matbe disk is corrupted."
             )
         num_super_blocks: int = ceil_division(header_size_required, self.config.block_size)
         if num_super_blocks == 0:
@@ -241,9 +247,7 @@ class InFileDisk(protocol.Disk):
         )
         
     @classmethod
-    def new_disk(cls, filepath: str, config: Config) -> Self:
-        if os.path.exists(filepath):
-            raise FileExistsError(f"{filepath=} already exists.")
+    def new_disk(cls, filepath: str | BinaryIO, config: Config) -> Self:
         disk_size = config.disk_size
         
         self = cls.__new__(cls)
@@ -255,7 +259,13 @@ class InFileDisk(protocol.Disk):
         self.config = config
         config_bytes: bytes = dump_config(config)
         
-        self.file = open(filepath, "wb+")
+        if isinstance(filepath, str):
+            if os.path.exists(filepath):
+                raise FileExistsError(f"{filepath=} already exists.")
+            self.file = open(filepath, "wb+")
+        else:
+            self.file = filepath
+        self._closed = False
         self.file.write(config_bytes)
         len_config_bytes: int = self.file.tell()
         
@@ -278,10 +288,11 @@ class InFileDisk(protocol.Disk):
             header_prefix_size_required + 
             config.inode_size * config.num_inodes
         )
+        self._reserved_space = header_size_required
         
-        if disk_size < header_size_required:
+        if disk_size < (header_size_required + self.config.block_size):
             raise ValueError(
-                f"{disk_size=} is too small try {header_size_required}."
+                f"{disk_size=} is too small try {header_size_required + self.config.block_size}."
             )
             
         num_super_blocks: int = ceil_division(header_size_required, config.block_size)
@@ -314,12 +325,27 @@ class InFileDisk(protocol.Disk):
         
         return self
     
-    def close(self): 
-        self.file.close()
-    
     def total_space(self) -> int: 
         return self.config.disk_size
     def free_space(self) -> int: 
         return self.config.block_size * self.blocks_bitmap.free_count()
     def used_space(self) -> int: 
         return self.total_space() - self.free_space()
+    def reserved_space(self) -> int: 
+        return self._reserved_space
+    
+    @property
+    def closed(self) -> bool: 
+        return self._closed
+    def close(self) -> None: 
+        if self._closed: return None
+        self._closed = True
+        self.file.close()
+    def __enter__(self) -> Self: 
+        if self.closed:
+            raise ValueError("I/O operation on closed file")
+        return self
+    def __exit__(self, 
+                 exc_type: type[BaseException] | None, 
+                 exc_val: BaseException | None, 
+                 exc_tb: TracebackType | None) -> None: self.close()
