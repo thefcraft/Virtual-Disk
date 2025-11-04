@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Self, Iterable, SupportsBytes, cast, overload
 from itertools import islice
-from tqdm import tqdm
 
 class InodeMode(Enum):
     REGULAR_FILE = auto()
@@ -111,13 +110,12 @@ class Inode:
         )
      
 class InodeIO:
-    def __init__(self, inode: Inode, disk: Disk, verbose: bool = False) -> None: 
+    def __init__(self, inode: Inode, disk: Disk) -> None: 
         self.inode: Inode = inode
         self.disk: Disk = disk
-        self.verbose: bool = verbose
     
     # --- Random-access primitives ---
-    def read_at(self, pos: int, n: int = -1, verbose: bool | None = None) -> bytes:
+    def read_at(self, pos: int, n: int = -1) -> bytes:
         """Read up to n bytes starting at pos. If n==-1, read to EOF."""
         inode: Inode = self.inode
         disk: Disk = self.disk
@@ -137,34 +135,19 @@ class InodeIO:
             start_block_idx, 
             end_block_idx + bool(end_block_off)
         )
-        pbar: tqdm | None = None
-        if verbose is None: verbose = self.verbose
-        if verbose:
-            pbar = tqdm(
-                total=n, 
-                desc="Writing", 
-                unit="B", 
-                unit_scale=True, 
-                unit_divisor=1024, 
-                colour="magenta"
-            )
         try: 
             start_block = disk.blocks[next(blocks)]
         except StopIteration: 
-            if pbar: pbar.close()
             raise RuntimeError(f"Something went wrong...")
         out.extend(start_block[start_block_off:])
-        if pbar: pbar.update(config.block_size - start_block_off)
+        
         for block_ptr in blocks:
             out.extend(disk.blocks[block_ptr])
-            if pbar: pbar.update(config.block_size)
         if len(out) < n: 
-            if pbar: pbar.close()
             raise RuntimeError(f"Something went wrong, {len(out)=}.")
-        if pbar: pbar.close()
         return bytes(out[:n])
         
-    def write_at(self, pos: int, data: bytes, verbose: bool | None = None) -> int:
+    def write_at(self, pos: int, data: bytes) -> int:
         """Write data starting at pos. Returns number of bytes written."""
         inode: Inode = self.inode
         disk: Disk = self.disk
@@ -173,7 +156,7 @@ class InodeIO:
         if pos < 0: raise ValueError("negative read position")
         if pos > inode.st_size: 
             # NOTE: as block may not be empty, may have garbage data so please fill with NULL_BYTES
-            self.write_at(inode.st_size, NULL_BYTES * (pos-inode.st_size), verbose=False)
+            self.write_at(inode.st_size, NULL_BYTES * (pos-inode.st_size))
         if not data: return 0
     
         start_block_idx, start_block_off = divmod(pos, config.block_size)
@@ -181,17 +164,6 @@ class InodeIO:
         remaining: int = len(data)
         src_off: int = 0
         
-        pbar: tqdm | None = None
-        if verbose is None: verbose = self.verbose
-        if verbose:
-            pbar = tqdm(
-                total=remaining, 
-                desc="Writing", 
-                unit="B", 
-                unit_scale=True, 
-                unit_divisor=1024, 
-                colour="magenta"
-            )
         try: 
             blocks = islice(
                 self.iteritem(), 
@@ -202,19 +174,16 @@ class InodeIO:
             start_block = disk.blocks[next(blocks)]
             start_block[start_block_off:start_block_off+to_write] = data[:to_write]
             src_off += to_write
-            if pbar: pbar.update(to_write)
             remaining -= to_write
             while remaining > 0:
                 to_write = min(config.block_size, remaining)
                 block = disk.blocks[next(blocks)]
                 block[:to_write] = data[src_off:src_off + to_write]
                 src_off += to_write
-                if pbar: pbar.update(to_write)
                 remaining -= to_write
             pos += src_off
             if pos > inode.st_size:
                 inode.st_size = pos
-            if pbar: pbar.close()
             return src_off
         except StopIteration: 
             pos += src_off
@@ -225,10 +194,8 @@ class InodeIO:
             block = disk.blocks[block_ptr]
             block[:to_write] = data[src_off:src_off + to_write]
             src_off += to_write
-            if pbar: pbar.update(to_write)
             remaining -= to_write
         inode.st_size = pos + src_off
-        if pbar: pbar.close()
         return src_off
         
     def iteritem(self) -> Iterable[int]:
