@@ -12,6 +12,10 @@ class Config:
     num_inodes: int
     
     @cached_property
+    def disk_size(self) -> int: 
+        return self.block_size * self.num_blocks
+    
+    @cached_property
     def block_addr_length(self) -> int:
         return ceil_division(self.num_blocks.bit_length(), 8)
     

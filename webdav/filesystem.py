@@ -1,4 +1,5 @@
 from wsgidav import util
+from wsgidav.dav_error import DAVError, HTTP_FORBIDDEN
 from wsgidav.dav_provider import DAVProvider, DAVCollection, DAVNonCollection
 
 from src.path import Directory
@@ -29,7 +30,11 @@ class CustomFilesystemProvider(DAVProvider):
         paths: list[bytes] = abspath_to_paths(
             path.encode('utf-8')
         )
-        result = root.get_childs_inode(*paths)
+        try:
+            result = root.get_childs_inode(*paths)
+        except NotADirectoryError as nad:
+            util._logger.info(f"Error: {nad}; {paths=}")
+            raise DAVError(HTTP_FORBIDDEN)
         if result is None: return None
         if result.inode.st_mode == InodeMode.DIRECTORY:
             return CustomFolderResource(

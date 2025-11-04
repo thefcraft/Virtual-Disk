@@ -35,3 +35,10 @@ class InMemoryDisk(protocol.Disk):
         )
         self.inodes[0][:] = root_inode.to_bytes(config)
         self.inodes_bitmap.set(0) # NOTE/TODO: for root
+        
+    def total_space(self) -> int: 
+        return self.config.disk_size
+    def free_space(self) -> int: 
+        return self.config.block_size * self.blocks_bitmap.free_count()
+    def used_space(self) -> int: 
+        return self.total_space() - self.free_space()

@@ -25,14 +25,14 @@ class BlockView(Protocol):
     
     def __setitem__(
         self, 
-        idx: "slice[int, int, None] | slice[None, None, None] | slice[None, int, None]", 
+        idx: "slice[int | None, int | None, None]", 
         value: bytes,
         /
     ):
         raise NotImplementedError()
     def __getitem__(
         self,
-        idx: "slice[int, None, None] | slice[int, int, None]",
+        idx: "slice[int | None, int | None, None]",
         /
     ) -> bytes:
         raise NotImplementedError()
@@ -52,3 +52,7 @@ class Disk(Protocol):
     
     inodes: InodesList
     blocks: BlocksList
+    
+    def total_space(self) -> int: ...
+    def free_space(self) -> int: ...
+    def used_space(self) -> int: ...
