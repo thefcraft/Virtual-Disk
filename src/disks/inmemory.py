@@ -3,12 +3,12 @@ from ..bitmap import Bitmap
 from ..inode import Inode, InodeMode
 from ..path import Directory
 
-from .. import protocol
+from .import BaseDisk
 
 from typing import Self
 from types import TracebackType
 
-class InMemoryDisk(protocol.Disk):
+class InMemoryDisk(BaseDisk):
     def __init__(self, config: Config) -> None:
         self._closed: bool = False
         

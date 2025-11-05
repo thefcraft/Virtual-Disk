@@ -6,17 +6,23 @@ from ..utils import ceil_division
 from ..constants import NULL_BYTES
 
 from .. import protocol
+from .import BaseDisk
 
 import os
 
 from typing import Iterator, Self, BinaryIO
 from types import TracebackType
 
+from enum import IntEnum, auto
+
 SUPER_BLOCK_DATA_LENGTH = 12
 
+class InFileDiskType(IntEnum):
+    NON_ENCRYPTED = 0
+    CHA_CHA_20_ENCRYPTED = 1
+
+
 def load_config_from_file(file: BinaryIO) -> Config:
-    if file.tell() != 0:
-        raise RuntimeError(f"{file.tell()=} is not zero.")
     block_size = int.from_bytes(
         file.read(SUPER_BLOCK_DATA_LENGTH),
         byteorder='big', signed=False
@@ -176,7 +182,8 @@ class BlocksList(protocol.BlocksList):
             pos=pos
         )
         
-class InFileDisk(protocol.Disk):
+        
+class InFileDisk(BaseDisk):
     root: Directory
     file: BinaryIO
     _reserved_space: int
@@ -189,6 +196,23 @@ class InFileDisk(protocol.Disk):
         else:
             self.file = filepath
         self._closed: bool = False
+        
+        try:
+            disk_type = InFileDiskType(int.from_bytes(
+                self.file.read(1), byteorder='big', signed=False
+            ))
+        except ValueError:
+            raise TypeError(
+                f"{filepath=} is not of {self.__class__.__name__} type."
+                f" maybe disk is corrupted."
+            )
+        if disk_type != InFileDiskType.NON_ENCRYPTED:
+            raise TypeError(
+                f"{filepath=} is not of {self.__class__.__name__} type."
+                f" Please use approprate disk class to load it."
+                f" {disk_type=};"
+            )
+            
         self.config = load_config_from_file(self.file)
         
         len_config_bytes: int = self.file.tell()
@@ -266,6 +290,9 @@ class InFileDisk(protocol.Disk):
         else:
             self.file = filepath
         self._closed = False
+        self.file.write(InFileDiskType.NON_ENCRYPTED.value.to_bytes(
+            length=1, byteorder='big', signed=False
+        )) # NOTE: first byte should be NULL_BYTES/NON_ENCRYPTED=0 for class InFileDisk 
         self.file.write(config_bytes)
         len_config_bytes: int = self.file.tell()
         

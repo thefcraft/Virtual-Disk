@@ -5,7 +5,7 @@ from wsgidav.wsgidav_app import WsgiDAVApp
 
 from webdav.config import get_config
 
-from src.disk import InMemoryDisk, InFileDisk
+from src.disk import InMemoryDisk, InFileDisk, InFileChaCha20EncryptedDisk
 from src.config import Config
 from src.path import Directory
 
@@ -18,7 +18,7 @@ def format_size(size_bytes):
         size_bytes /= 1024
     return f"{size_bytes:.2f} PB"
 
-def main(root: Directory, readonly: bool = False, host: str = "0.0.0.0", port: int=8080) -> None:
+def main(root: Directory, readonly: bool = False, host: str = "0.0.0.0", port: int=8081) -> None:
     config = get_config(
         root=root, readonly=readonly
     )
@@ -51,21 +51,30 @@ if __name__ == "__main__":
     basedir = os.path.dirname(os.path.abspath(__file__))
     instance = os.path.join(basedir, 'instance')
     if not os.path.exists(instance): os.mkdir(instance)
-    filepath = os.path.join(instance, 'disk.bin')
+    filepath = os.path.join(instance, 'disk.bin.enc')
     if not os.path.exists(filepath):
         config = Config(
-            block_size=1024*2,
+            block_size=6144,
             inode_size=64,
-            num_blocks=1024*128,
-            num_inodes=1024*256
+            num_blocks=1024*16,
+            num_inodes=1024*16
         )
-        disk = InFileDisk.new_disk(
+        disk = InFileChaCha20EncryptedDisk.new_disk(
             filepath=filepath,
-            config=config
+            config=config,
+            password=b'very secure password :->'
         )
+        # disk = InFileDisk.new_disk(
+        #     filepath=filepath,
+        #     config=config
+        # )
     else:
-        disk = InFileDisk(
-            filepath=filepath
+        # disk = InFileDisk(
+        #     filepath=filepath
+        # )
+        disk = InFileChaCha20EncryptedDisk(
+            filepath=filepath,
+            password=b'very secure password :->'
         )
     with disk:
         print("TOTAL SPACE: ", format_size(disk.total_space()))

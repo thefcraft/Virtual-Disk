@@ -397,6 +397,7 @@ class Directory(): # NOTE: may have errors on '..' or '.' so please use abs path
         ):
             while data := src_file.read(size=chunk_size):
                 dest_file.write(data)
+                dest_file.flush()
     
     def rm_tree(self, dir_name: bytes):
         if dir_name == b'.' or dir_name == b'..':
@@ -620,7 +621,15 @@ class FileIO(BytesIO):
     def writelines(self, lines: Iterable[bytes]): # type: ignore[override]
         for line in lines:
             self.write(line)
-            
+    
+    def flush(self):
+        """Force all pending data to be written to disk."""
+        if self._closed:
+            raise ValueError("I/O operation on closed file")
+        # ensure inode is persisted
+        self.disk.inodes[self.inode_ptr][:] = self.inode_io.inode.to_bytes(self.config)
+
+       
     def __repr__(self) -> str:
         inode: Inode = self.inode_io.inode
         return (f"<FileIO inode={inode} pos={self._pos} "

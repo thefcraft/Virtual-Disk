@@ -9,6 +9,11 @@ dependencies = [
     "wsgidav>=4.3.3",
 ]
 
+[project.optional-dependencies]
+crypto = [
+    "cryptography>=46.0.3",
+]
+
 [dependency-groups]
 dev = [
     "fastapi>=0.121.0",
