@@ -143,28 +143,29 @@ class InodeIO:
         
         for block_ptr in blocks:
             out.extend(disk.blocks[block_ptr])
-        if len(out) < n: 
-            raise RuntimeError(f"Something went wrong, {len(out)=}.")
+            
+        if len(out) < n:
+            raise RuntimeError(f"Something went wrong, {len(out)=} {self.inode.st_mode=} {self.inode.st_size=}.")
         return bytes(out[:n])
-        
+            
     def write_at(self, pos: int, data: bytes) -> int:
         """Write data starting at pos. Returns number of bytes written."""
         inode: Inode = self.inode
         disk: Disk = self.disk
         config: Config = disk.config
-        
-        if pos < 0: raise ValueError("negative read position")
+
+        if pos < 0: raise ValueError("negative write position")
         if pos > inode.st_size: 
             # NOTE: as block may not be empty, may have garbage data so please fill with NULL_BYTES
             self.write_at(inode.st_size, NULL_BYTES * (pos-inode.st_size))
         if not data: return 0
     
         start_block_idx, start_block_off = divmod(pos, config.block_size)
-        
+
         remaining: int = len(data)
         src_off: int = 0
-        
-        try: 
+
+        try:
             blocks = islice(
                 self.iteritem(), 
                 start_block_idx, 
@@ -181,13 +182,9 @@ class InodeIO:
                 block[:to_write] = data[src_off:src_off + to_write]
                 src_off += to_write
                 remaining -= to_write
-            pos += src_off
-            if pos > inode.st_size:
-                inode.st_size = pos
-            return src_off
-        except StopIteration: 
-            pos += src_off
-            inode.st_size = pos # NOTE: no need to check `if pos > inode.st_size:` as it always true as if we need more block => need to store larger file
+        except StopIteration: pass
+        
+        # Allocate new blocks for any remaining data
         while remaining > 0:
             to_write = min(config.block_size, remaining)
             block_ptr = self._allocate_block(st_size=pos + src_off)
@@ -195,8 +192,12 @@ class InodeIO:
             block[:to_write] = data[src_off:src_off + to_write]
             src_off += to_write
             remaining -= to_write
-        inode.st_size = pos + src_off
-        return src_off
+            
+        new_size = pos + len(data)
+        if new_size > inode.st_size:
+            inode.st_size = new_size
+            
+        return len(data)
         
     def iteritem(self) -> Iterable[int]:
         inode: Inode = self.inode

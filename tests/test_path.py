@@ -1,5 +1,9 @@
 from . import disk, assert_disk_not_changed
 from src.path import FileIO, FileMode
+from src.inode import InodeIO
+from src.disk import InMemoryDisk
+from src.config import Config
+
 import pytest
 
 def test_filemode_basics():
@@ -268,3 +272,151 @@ def test_multiple_create_flags_and_recreate_behavior():
     assert f2.read() == b"9"
     f2.close()
     root.remove(name)
+    
+@assert_disk_not_changed
+def test_large_file():
+    root = disk.root
+    data = bytearray(i % 255 for i in range(1024*1024)) # 1 MB
+    repeate: int = 4
+    with root.open(b'home.txt', FileMode.WRITE | FileMode.CREATE | FileMode.EXCLUSIVE) as f:    
+        for _ in range(repeate): 
+            f.write(data)
+    with root.open(b'home.txt') as f:
+        for _ in range(repeate): 
+            assert f.read(1024*1024) == data
+    root.remove(b'home.txt')
+
+@assert_disk_not_changed
+def test_large_file_again():
+    root = disk.root
+    data = bytearray(i % 255 for i in range(4))
+    repeate: int = 1024
+    with root.open(b'home.txt', FileMode.WRITE | FileMode.CREATE | FileMode.EXCLUSIVE) as f:    
+        for _ in range(repeate): 
+            f.write(data)
+    with root.open(b'home.txt') as f:
+        for _ in range(repeate): 
+            assert f.read(4) == data
+    root.remove(b'home.txt')
+    
+
+@assert_disk_not_changed
+def test_large_inode():
+    root = disk.root
+    
+    result = root.create_empty_file(b'some.txt')
+    
+    num_entrys = 512
+    
+    inode_io = InodeIO(
+        result.inode, disk=disk
+    )
+
+    assert inode_io.read_at(0) == b''
+        
+    pos = 0
+    for i in range(num_entrys):
+        name = f"file-{i:_<5}.txt\n".encode('utf-8')
+        inode_io.write_at(pos, name)
+        pos += len(name)
+        
+    inode_io.read_at(0)
+    
+    inode_io.truncate_to(0)
+    
+    assert inode_io.read_at(0) == b''
+    
+    root.remove(b'some.txt')
+
+def test_some():
+    config = Config(
+        block_size=512,
+        inode_size=48,
+        num_blocks=512,
+        num_inodes=512
+    )
+
+    disk = InMemoryDisk(
+        config=config
+    )
+    
+    # print(disk.inodes_bitmap) # 1 
+    # print(disk.blocks_bitmap) # 1 1
+    
+    num_entrys = 512 * 16
+    
+    pos = 0
+    for i in range(num_entrys):
+        name = f"file-{i:_<5}.txt".encode('utf-8')
+        
+        pos += disk.root.inode_io.write_at(pos=pos, data=name)
+            # for i in range(len(name)):
+                # pos += disk.root.inode_io.write_at(pos=pos, data=name[i:i+1])
+    
+    disk.root.inode_io.read_at(pos=0, n=-1)
+    
+
+# @assert_disk_not_changed
+# def test_many_entry():
+#     root = disk.root
+#     num_entrys = 256
+    
+#     NAME_REPR_LEN = 1
+    
+#     with FileIO(
+#         disk=disk, 
+#         inode_ptr=root.inode_ptr,
+#         inode=root.inode_io.inode,
+#         mode=FileMode.READWRITE
+#     ) as f:
+#         for i in range(num_entrys):
+#             # root._add_entry(f"file-{i:_<5}.txt".encode('utf-8'), 0)
+
+#             name = f"file-{i:_<5}.txt".encode('utf-8')
+#             inode_ptr = 0
+
+#             entry_data = len(name).to_bytes(
+#                 length=NAME_REPR_LEN,
+#                 byteorder='big', 
+#                 signed=False
+#             ) + name + inode_ptr.to_bytes(
+#                 length=disk.config.inode_addr_length,
+#                 byteorder='big', 
+#                 signed=False
+#             )
+#             f.write(entry_data)
+#             pos = f.tell()
+#             f.seek(0)
+#             f.read()
+#             f.seek(pos)
+#     with FileIO(
+#         disk=disk, 
+#         inode_ptr=root.inode_ptr,
+#         inode=root.inode_io.inode,
+#         mode=FileMode.READWRITE
+#     ) as f: 
+#         f.read()
+    
+#     root.inode_io.read_at(0)
+    
+#     for i in range(num_entrys):
+#         root._remove_entry(f"file-{i:_<5}.txt".encode('utf-8'))
+    
+
+# @assert_disk_not_changed
+# def test_many_files():
+#     root = disk.root
+    
+#     per_file_name_len = len(f"file-{0:_<5}.txt".encode('utf-8'))
+#     num_files = 256
+    
+#     # print(per_file_name_len * 256 + 256)
+    
+#     for i in range(num_files):
+#         root.create_empty_file(f"file-{i:_<5}.txt".encode('utf-8'))
+#     # TODO: error caused by name len store in the inode and using inode ptr
+#     # items = list(root.inode_io.iteritem())
+#     # assert len(items) == num_files, f"{len(items)=} != {num_files=}"
+#     for i in range(num_files):
+#         root.remove(f"file-{i:_<5}.txt".encode('utf-8'))
+    
