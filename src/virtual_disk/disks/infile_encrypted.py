@@ -3,7 +3,7 @@ from io import BytesIO
 from types import TracebackType
 from typing import BinaryIO, ByteString, Self
 
-from src.virtual_disk.config import Config
+from ..config import Config
 
 from .crypto import (
     CipherChaCha20Decryptor,
