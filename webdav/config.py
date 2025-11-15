@@ -1,6 +1,6 @@
 from wsgidav.dc.base_dc import BaseDomainController
 
-from src.path import Directory
+from src.virtual_disk.path import Directory
 
 from .filesystem import CustomFilesystemProvider
 

@@ -4,9 +4,9 @@ from cheroot import wsgi
 from wsgidav import util
 from wsgidav.wsgidav_app import WsgiDAVApp
 
-from src.config import Config
-from src.disk import InFileChaCha20EncryptedDisk, InFileDisk, InMemoryDisk
-from src.path import Directory
+from src.virtual_disk.config import Config
+from src.virtual_disk.disk import InFileChaCha20EncryptedDisk, InFileDisk, InMemoryDisk
+from src.virtual_disk.path import Directory
 from webdav.config import get_config
 
 

@@ -6,9 +6,9 @@ from typing import Generator
 from fastapi import Depends, FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from src.config import Config
-from src.disk import InFileDisk
-from src.protocol import Disk
+from src.virtual_disk.config import Config
+from src.virtual_disk.disk import InFileDisk
+from src.virtual_disk.protocol import Disk
 
 basedir = os.path.dirname(os.path.abspath(__file__))
 instance = os.path.join(basedir, "instance")

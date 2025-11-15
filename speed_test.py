@@ -1,10 +1,10 @@
 import os
 import time
 
-from src.config import Config
-from src.disk import InFileDisk, InMemoryDisk
-from src.disks import BaseDisk
-from src.path import Directory, FileMode
+from src.virtual_disk.config import Config
+from src.virtual_disk.disk import InFileDisk, InMemoryDisk
+from src.virtual_disk.disks import BaseDisk
+from src.virtual_disk.path import Directory, FileMode
 
 # ---- HARDCODED TEST SETTINGS ----
 FILE_SIZE = 200 * 1024 * 1024  # 200 MB test file

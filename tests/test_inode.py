@@ -1,4 +1,4 @@
-from src.inode import Inode, InodeMode
+from src.virtual_disk.inode import Inode, InodeMode
 
 from . import config
 

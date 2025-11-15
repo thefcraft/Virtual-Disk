@@ -1,5 +1,5 @@
-from src.inode import Inode, InodeIO, InodeMode
-from src.path import Directory
+from src.virtual_disk.inode import Inode, InodeIO, InodeMode
+from src.virtual_disk.path import Directory
 
 from . import assert_disk_not_changed, disk
 

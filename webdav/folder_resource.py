@@ -2,11 +2,11 @@ from wsgidav import util
 from wsgidav.dav_error import HTTP_FORBIDDEN, DAVError
 from wsgidav.dav_provider import DAVCollection, DAVNonCollection, DAVProvider
 
-from src.config import Config
-from src.inode import InodeMode
-from src.path import Directory
-from src.protocol import Disk
-from src.utils import abspath_to_paths
+from src.virtual_disk.config import Config
+from src.virtual_disk.inode import InodeMode
+from src.virtual_disk.path import Directory
+from src.virtual_disk.protocol import Disk
+from src.virtual_disk.utils import abspath_to_paths
 
 from .file_resource import CustomFileResource
 

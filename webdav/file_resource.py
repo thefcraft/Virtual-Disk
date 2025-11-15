@@ -4,10 +4,10 @@ from wsgidav import util
 from wsgidav.dav_error import HTTP_FORBIDDEN, DAVError
 from wsgidav.dav_provider import DAVNonCollection, DAVProvider
 
-from src.config import Config
-from src.path import Directory, FileIO, FileMode
-from src.protocol import Disk
-from src.utils import abspath_to_paths
+from src.virtual_disk.config import Config
+from src.virtual_disk.path import Directory, FileIO, FileMode
+from src.virtual_disk.protocol import Disk
+from src.virtual_disk.utils import abspath_to_paths
 
 
 class CustomFileResource(DAVNonCollection):

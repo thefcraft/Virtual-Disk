@@ -1,22 +1,25 @@
-from . import disk, assert_disk_not_changed
-from src.path import FileIO, FileMode
-from src.inode import InodeIO
-from src.disk import InMemoryDisk
-from src.config import Config
-
 import pytest
+
+from src.virtual_disk.config import Config
+from src.virtual_disk.disk import InMemoryDisk
+from src.virtual_disk.inode import InodeIO
+from src.virtual_disk.path import FileIO, FileMode
+
+from . import assert_disk_not_changed, disk
+
 
 def test_filemode_basics():
     assert FileMode.READ in FileMode.READ
     assert (FileMode.READ | FileMode.WRITE) & FileMode.READ
     assert (FileMode.READ | FileMode.WRITE) & FileMode.WRITE
 
+
 @assert_disk_not_changed
 def test_create_open_read_write_truncate():
     root = disk.root
-    
+
     fname = b"testfile"
-    
+
     f = root.open(fname, mode=FileMode.CREATE | FileMode.READWRITE)
     assert isinstance(f, FileIO)
     with f:
@@ -29,7 +32,7 @@ def test_create_open_read_write_truncate():
         f.truncate(2)
         f.seek(0)
         assert f.read(10) == b"he"
-        
+
     # reopen in read mode and verify contents persisted
     f2 = root.open(fname, mode=FileMode.READ)
     with f2:
@@ -41,9 +44,9 @@ def test_create_open_read_write_truncate():
 @assert_disk_not_changed
 def test_append_mode_creates_and_appends():
     root = disk.root
-    
+
     fname = b"appendfile"
-    
+
     f = root.open(fname, mode=FileMode.APPEND | FileMode.CREATE | FileMode.WRITE)
     with f:
         f.write(b"a")
@@ -56,12 +59,12 @@ def test_append_mode_creates_and_appends():
     with f3:
         assert f3.read(10) == b"abcd"
     root.remove(fname)
-        
-    
+
+
 @assert_disk_not_changed
 def test_mkdir_rmdir_and_listdir():
     root = disk.root
-    
+
     root.mkdir(b"subdir", exist_ok=False)
     assert root.exists(b"subdir")
     assert root.isdir(b"subdir")
@@ -73,38 +76,44 @@ def test_mkdir_rmdir_and_listdir():
     root.rmdir(b"subdir")
     assert not root.exists(b"subdir")
 
+
 @assert_disk_not_changed
 def test_rename_and_overwrite():
     root = disk.root
-    
+
     root.open(b"a.txt", mode=FileMode.CREATE | FileMode.WRITE).close()
     root.mkdir(b"dir", exist_ok=True)
     # move a.txt -> dir/b.txt
-    root.rename([b".", b"a.txt"], [b".", b"dir", b"b.txt"], overwrite=False)  # adapt path style if needed
+    root.rename(
+        [b".", b"a.txt"], [b".", b"dir", b"b.txt"], overwrite=False
+    )  # adapt path style if needed
     assert root.exists(b"dir")
     dest_dir = root.chdir(b"dir")
     assert dest_dir.exists(b"b.txt")
-    
-    root.rm_tree(b'dir')
-    
+
+    root.rm_tree(b"dir")
+
 
 @assert_disk_not_changed
 def test_copy_file_and_remove():
     root = disk.root
-    
+
     with root.open(b"src.bin", mode=FileMode.CREATE | FileMode.WRITE) as s:
         s.write(b"0123456789")
-    root.copy_file([b".", b"src.bin"], [b".", b"dst.bin"], overwrite=False, chunk_size=4)
+    root.copy_file(
+        [b".", b"src.bin"], [b".", b"dst.bin"], overwrite=False, chunk_size=4
+    )
     with root.open(b"dst.bin", mode=FileMode.READ) as d:
         assert d.read(20) == b"0123456789"
     root.remove(b"dst.bin")
     assert not root.exists(b"dst.bin")
-    root.remove(b'src.bin')
+    root.remove(b"src.bin")
+
 
 @assert_disk_not_changed
 def test_rm_tree_and_copy_tree():
     root = disk.root
-    
+
     # Create tree: a/ (file f1, subdir b with f2)
     a = root.mkdir(b"a", exist_ok=True)
     with a.open(b"f1", mode=FileMode.CREATE | FileMode.WRITE) as f:
@@ -119,7 +128,7 @@ def test_rm_tree_and_copy_tree():
     a_copy = root.chdir(b"a_copy")
     assert a_copy.exists(b"f1")
     assert a_copy.isdir(b"b")
-    
+
     # remove tree
     root.rm_tree(b"a_copy")
     assert not root.exists(b"a_copy")
@@ -144,6 +153,7 @@ def test_truncate_growth_and_partial_overwrite():
         full = f.read()
         assert full[5:8] == b"XYZ"
     root.remove(fname)
+
 
 @assert_disk_not_changed
 def test_open_existing_without_create_raises():
@@ -175,13 +185,14 @@ def test_double_rename_and_name_collision():
     root.remove(b"c.txt")
     root.remove(b"b.txt")
 
+
 # @assert_disk_not_changed # TODO: prevend from opening same file multiple times maybe raise error, may need global state?
 # def test_concurrent_writes_and_reads_share_pointer_independently():
 #     root = disk.root
 #     fname = b"multiio"
 #     with root.open(fname, mode=FileMode.CREATE | FileMode.READWRITE) as f1:
 #         f1.write(b"abcde")
-        
+
 #         # open again separately
 #         with root.open(fname, mode=FileMode.READWRITE) as f2:
 #             f2.seek(2)
@@ -189,10 +200,11 @@ def test_double_rename_and_name_collision():
 #             # pointer positions should be independent
 #             assert f1.tell() == 5
 #             assert f2.tell() == 3
-            
+
 #         f1.seek(0)
 #         assert f1.read(5) == b"abZde"
 #     root.remove(fname)
+
 
 @assert_disk_not_changed
 def test_directory_traversal_nested_depth():
@@ -208,6 +220,7 @@ def test_directory_traversal_nested_depth():
         back = back.chdir(b"..")
     assert back.isdir(b".")
     root.rm_tree(b"deep")
+
 
 @assert_disk_not_changed
 def test_copy_tree_overwrite_false_and_true():
@@ -242,6 +255,7 @@ def test_remove_nonexistent_file_and_nonempty_dir_errors():
         root.rmdir(b"D")  # nonempty dir
     root.rm_tree(b"D")
 
+
 @assert_disk_not_changed
 def test_zero_byte_file_read_write_seek():
     root = disk.root
@@ -264,7 +278,7 @@ def test_multiple_create_flags_and_recreate_behavior():
     f = root.open(name, mode=FileMode.CREATE | FileMode.WRITE)
     f.write(b"123")
     f.close()
-    
+
     # opening again with CREATE | TRUNCATE equivalent should reset content
     f2 = root.open(name, mode=FileMode.CREATE | FileMode.TRUNCATE | FileMode.READWRITE)
     f2.write(b"9")
@@ -272,99 +286,97 @@ def test_multiple_create_flags_and_recreate_behavior():
     assert f2.read() == b"9"
     f2.close()
     root.remove(name)
-    
+
+
 @assert_disk_not_changed
 def test_large_file():
     root = disk.root
-    data = bytearray(i % 255 for i in range(1024*1024)) # 1 MB
-    repeate: int = 4
-    with root.open(b'home.txt', FileMode.WRITE | FileMode.CREATE | FileMode.EXCLUSIVE) as f:    
-        for _ in range(repeate): 
+    data = bytearray(i % 255 for i in range(1024 * 1024))  # 1 MB
+    repeate = 4
+    with root.open(
+        b"home.txt", FileMode.WRITE | FileMode.CREATE | FileMode.EXCLUSIVE
+    ) as f:
+        for _ in range(repeate):
             f.write(data)
-    with root.open(b'home.txt') as f:
-        for _ in range(repeate): 
-            assert f.read(1024*1024) == data
-    root.remove(b'home.txt')
+    with root.open(b"home.txt") as f:
+        for _ in range(repeate):
+            assert f.read(1024 * 1024) == data
+    root.remove(b"home.txt")
+
 
 @assert_disk_not_changed
 def test_large_file_again():
     root = disk.root
     data = bytearray(i % 255 for i in range(4))
-    repeate: int = 1024
-    with root.open(b'home.txt', FileMode.WRITE | FileMode.CREATE | FileMode.EXCLUSIVE) as f:    
-        for _ in range(repeate): 
+    repeate = 1024
+    with root.open(
+        b"home.txt", FileMode.WRITE | FileMode.CREATE | FileMode.EXCLUSIVE
+    ) as f:
+        for _ in range(repeate):
             f.write(data)
-    with root.open(b'home.txt') as f:
-        for _ in range(repeate): 
+    with root.open(b"home.txt") as f:
+        for _ in range(repeate):
             assert f.read(4) == data
-    root.remove(b'home.txt')
-    
+    root.remove(b"home.txt")
+
 
 @assert_disk_not_changed
 def test_large_inode():
     root = disk.root
-    
-    result = root.create_empty_file(b'some.txt')
-    
-    num_entrys = 512
-    
-    inode_io = InodeIO(
-        result.inode, disk=disk
-    )
 
-    assert inode_io.read_at(0) == b''
-        
+    result = root.create_empty_file(b"some.txt")
+
+    num_entrys = 512
+
+    inode_io = InodeIO(result.inode, disk=disk)
+
+    assert inode_io.read_at(0) == b""
+
     pos = 0
     for i in range(num_entrys):
-        name = f"file-{i:_<5}.txt\n".encode('utf-8')
+        name = f"file-{i:_<5}.txt\n".encode("utf-8")
         inode_io.write_at(pos, name)
         pos += len(name)
-        
+
     inode_io.read_at(0)
-    
+
     inode_io.truncate_to(0)
-    
-    assert inode_io.read_at(0) == b''
-    
-    root.remove(b'some.txt')
+
+    assert inode_io.read_at(0) == b""
+
+    root.remove(b"some.txt")
+
 
 def test_some():
-    config = Config(
-        block_size=512,
-        inode_size=48,
-        num_blocks=512,
-        num_inodes=512
-    )
+    config = Config(block_size=512, inode_size=48, num_blocks=512, num_inodes=512)
 
-    disk = InMemoryDisk(
-        config=config
-    )
-    
-    # print(disk.inodes_bitmap) # 1 
+    disk = InMemoryDisk(config=config)
+
+    # print(disk.inodes_bitmap) # 1
     # print(disk.blocks_bitmap) # 1 1
-    
+
     num_entrys = 512 * 16
-    
+
     pos = 0
     for i in range(num_entrys):
-        name = f"file-{i:_<5}.txt".encode('utf-8')
-        
+        name = f"file-{i:_<5}.txt".encode("utf-8")
+
         pos += disk.root.inode_io.write_at(pos=pos, data=name)
-            # for i in range(len(name)):
-                # pos += disk.root.inode_io.write_at(pos=pos, data=name[i:i+1])
-    
+        # for i in range(len(name)):
+        # pos += disk.root.inode_io.write_at(pos=pos, data=name[i:i+1])
+
     disk.root.inode_io.read_at(pos=0, n=-1)
-    
+
 
 # @assert_disk_not_changed
 # def test_many_entry():
 #     root = disk.root
 #     num_entrys = 256
-    
+
 #     NAME_REPR_LEN = 1
-    
+
 #     with FileIO(
-#         disk=disk, 
+#         disk=disk,
 #         inode_ptr=root.inode_ptr,
 #         inode=root.inode_io.inode,
 #         mode=FileMode.READWRITE
@@ -377,11 +389,11 @@ def test_some():
 
 #             entry_data = len(name).to_bytes(
 #                 length=NAME_REPR_LEN,
-#                 byteorder='big', 
+#                 byteorder='big',
 #                 signed=False
 #             ) + name + inode_ptr.to_bytes(
 #                 length=disk.config.inode_addr_length,
-#                 byteorder='big', 
+#                 byteorder='big',
 #                 signed=False
 #             )
 #             f.write(entry_data)
@@ -390,28 +402,28 @@ def test_some():
 #             f.read()
 #             f.seek(pos)
 #     with FileIO(
-#         disk=disk, 
+#         disk=disk,
 #         inode_ptr=root.inode_ptr,
 #         inode=root.inode_io.inode,
 #         mode=FileMode.READWRITE
-#     ) as f: 
+#     ) as f:
 #         f.read()
-    
+
 #     root.inode_io.read_at(0)
-    
+
 #     for i in range(num_entrys):
 #         root._remove_entry(f"file-{i:_<5}.txt".encode('utf-8'))
-    
+
 
 # @assert_disk_not_changed
 # def test_many_files():
 #     root = disk.root
-    
+
 #     per_file_name_len = len(f"file-{0:_<5}.txt".encode('utf-8'))
 #     num_files = 256
-    
+
 #     # print(per_file_name_len * 256 + 256)
-    
+
 #     for i in range(num_files):
 #         root.create_empty_file(f"file-{i:_<5}.txt".encode('utf-8'))
 #     # TODO: error caused by name len store in the inode and using inode ptr
@@ -419,4 +431,3 @@ def test_some():
 #     # assert len(items) == num_files, f"{len(items)=} != {num_files=}"
 #     for i in range(num_files):
 #         root.remove(f"file-{i:_<5}.txt".encode('utf-8'))
-    
