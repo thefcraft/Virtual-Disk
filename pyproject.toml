@@ -26,7 +26,7 @@ dev = [
 mypy_path = "stubs"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = { "virtual_disk" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
