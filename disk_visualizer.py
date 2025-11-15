@@ -1,19 +1,21 @@
-from fastapi import FastAPI, Depends
-from fastapi.responses import HTMLResponse, JSONResponse
-from contextlib import asynccontextmanager
 import os
-
-from src.disk import InFileDisk
-from src.config import Config
-from src.protocol import Disk
+from contextlib import asynccontextmanager
 from io import BytesIO
-
 from typing import Generator
 
+from fastapi import Depends, FastAPI
+from fastapi.responses import HTMLResponse, JSONResponse
+
+from src.config import Config
+from src.disk import InFileDisk
+from src.protocol import Disk
+
 basedir = os.path.dirname(os.path.abspath(__file__))
-instance = os.path.join(basedir, 'instance')
-if not os.path.exists(instance): os.mkdir(instance)
-filepath = os.path.join(instance, 'disk.bin')
+instance = os.path.join(basedir, "instance")
+if not os.path.exists(instance):
+    os.mkdir(instance)
+filepath = os.path.join(instance, "disk.bin")
+
 
 def get_disk() -> Generator[Disk]:
     # disk = InFileDisk.new_disk(
@@ -25,11 +27,10 @@ def get_disk() -> Generator[Disk]:
     #         num_inodes=32
     #     )
     # )
-    with open(filepath, 'rb') as f:
+    with open(filepath, "rb") as f:
         disk = InFileDisk(f)
         with disk:
             yield disk
-        
 
 
 app = FastAPI(title="Disk Visualizer")
@@ -53,6 +54,7 @@ def disk_state(disk: Disk = Depends(get_disk)):
         ],
     }
     return JSONResponse(state)
+
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard():
@@ -110,7 +112,7 @@ def dashboard():
 </head>
 <body>
   <h1>🧩 Disk Visualization</h1>
-  
+
   <div class="tabs">
     <div class="tab active" data-tab="blocks">Blocks</div>
     <div class="tab" data-tab="inodes">Inodes</div>
@@ -188,4 +190,5 @@ refresh();
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
