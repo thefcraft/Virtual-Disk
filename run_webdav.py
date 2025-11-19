@@ -25,7 +25,7 @@ def main(
 
     config["host"] = host
     config["port"] = port
-    # config["verbose"] = 2
+    config["verbose"] = 3
 
     app = WsgiDAVApp(config)
     version = (
@@ -35,8 +35,8 @@ def main(
         bind_addr=(config["host"], config["port"]),
         wsgi_app=app,
         server_name=version,
-        # numthreads=1,
-        numthreads = 50, # NOTE/TODO: MY LIB IS NOT COMPATABLE YET
+        numthreads=1,
+        # numthreads = 50, # NOTE/TODO: MY LIB IS NOT COMPATABLE YET
     )
     app.logger.info(f"Running {version}")
     app.logger.info(f"Serving on http://{config['host']}:{config['port']}/ ...")
@@ -53,10 +53,10 @@ if __name__ == "__main__":
     instance = os.path.join(basedir, "instance")
     if not os.path.exists(instance):
         os.mkdir(instance)
-    filepath = os.path.join(instance, "disk.bin.enc")
+    filepath = os.path.join(instance, "large_disk.bin.enc")
     if not os.path.exists(filepath):
         config = Config(
-            block_size=6144, inode_size=64, num_blocks=1024 * 16, num_inodes=1024 * 16
+            block_size=4096, inode_size=64, num_blocks=1024 * 64, num_inodes=1024 * 16
         )
         disk = InFileChaCha20EncryptedDisk.new_disk(
             filepath=filepath, config=config, password=b"very secure password :->"

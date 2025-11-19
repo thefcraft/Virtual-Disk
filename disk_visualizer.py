@@ -15,7 +15,7 @@ instance = os.path.join(basedir, "instance")
 template = os.path.join(basedir, "templates")
 if not os.path.exists(instance):
     os.mkdir(instance)
-filepath = os.path.join(instance, "disk.bin.enc")
+filepath = os.path.join(instance, "large_disk.bin.enc")
 dashboard_path = os.path.join(template, "dashboard.html")
 with open(dashboard_path, "r") as f:
     html: str = f.read()
