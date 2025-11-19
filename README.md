@@ -1,5 +1,8 @@
 # Virtual Disk Filesystem
 
+## ⚠️ Caution: pre alpha 
+this project is still under development so please do not use this to store imp. files as they may corrupts...
+
 [![Ask DeepWiki](https://devin.ai/assets/askdeepwiki.png)](https://deepwiki.com/thefcraft/Virtual-Disk)
 
 This project is a user-level virtual filesystem implemented from scratch in Python. It simulates a standard UNIX-like filesystem structure, including inodes, data blocks, and bitmaps for allocation management. The filesystem can be backed by different storage mechanisms (in-memory, a single file, or an encrypted file) and can be mounted and accessed over the network via a built-in WebDAV server.
