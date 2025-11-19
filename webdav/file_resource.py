@@ -9,6 +9,16 @@ from src.virtual_disk.path import Directory, FileIO, FileMode
 from src.virtual_disk.protocol import Disk
 from src.virtual_disk.utils import abspath_to_paths
 
+import threading
+
+FILE_LOCKS: dict[int, threading.Lock] = {}  # map inode_ptr -> Lock
+FILE_LOCKS_LOCK = threading.Lock()
+
+def get_file_lock(inode_ptr: int) -> threading.Lock:
+    with FILE_LOCKS_LOCK:
+        if inode_ptr not in FILE_LOCKS:
+            FILE_LOCKS[inode_ptr] = threading.Lock()
+        return FILE_LOCKS[inode_ptr]
 
 class CustomFileResource(DAVNonCollection):
     """Represents a single existing DAV resource instance.
@@ -24,6 +34,7 @@ class CustomFileResource(DAVNonCollection):
         self.root: Directory = root
         self.fs_opts: DAVProvider = self.provider
         self._move_deleted: bool = False
+        self._write_lock: threading.Lock | None = None
 
     @property
     def disk(self) -> Disk:
@@ -93,12 +104,25 @@ class CustomFileResource(DAVNonCollection):
         if self.provider.is_readonly():  # ...
             raise DAVError(HTTP_FORBIDDEN)
         result = self.assert_get_childs_inode(*self.abspath)
+        
+        lock = get_file_lock(result.inode_ptr)
+        lock.acquire()  # Exclusive write
+        self._write_lock = lock
+
         return FileIO(
             disk=self.disk,
             inode_ptr=result.inode_ptr,
             inode=result.inode,
             mode=FileMode.WRITE,
         )
+    
+    def end_write(self, *, with_errors):
+        
+        # Always release lock
+        if self._write_lock is not None:
+            self._write_lock.release()
+
+        return super().end_write(with_errors=with_errors)
 
     def delete(self) -> None:
         """Remove this resource or collection (recursive).

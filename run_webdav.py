@@ -25,7 +25,7 @@ def main(
 
     config["host"] = host
     config["port"] = port
-    config["verbose"] = 2
+    # config["verbose"] = 2
 
     app = WsgiDAVApp(config)
     version = (
@@ -35,8 +35,8 @@ def main(
         bind_addr=(config["host"], config["port"]),
         wsgi_app=app,
         server_name=version,
-        numthreads=1,
-        # numthreads = 50, # NOTE/TODO: MY LIB IS NOT COMPATABLE YET
+        # numthreads=1,
+        numthreads = 50, # NOTE/TODO: MY LIB IS NOT COMPATABLE YET
     )
     app.logger.info(f"Running {version}")
     app.logger.info(f"Serving on http://{config['host']}:{config['port']}/ ...")
