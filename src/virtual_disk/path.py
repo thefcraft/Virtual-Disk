@@ -67,6 +67,20 @@ class Directory:  # NOTE: may have errors on '..' or '.' so please use abs path.
         new_dir._add_entry(name=b"..", inode_ptr=parent_inode_ptr)
         new_dir._write_self_inode_back()
         return new_dir
+    
+    @staticmethod
+    def split_common_prefix(src: list[bytes], dest: list[bytes]) -> tuple[list[bytes], list[bytes], list[bytes]]:
+        k: int = 0
+        max_k: int = min(len(src), len(dest))
+
+        while k < max_k and src[k] == dest[k]:
+            k += 1
+
+        prefix = src[:k]
+        new_src = src[k:]
+        new_dest = dest[k:]
+
+        return prefix, new_src, new_dest
 
     def _write_self_inode_back(self) -> None:
         """Persist the in-memory inode to disk for this directory's inode."""
@@ -323,9 +337,12 @@ class Directory:  # NOTE: may have errors on '..' or '.' so please use abs path.
     ) -> None:
         *src_dir_names, src_name = src
         *dest_dir_names, dest_name = dest
-
-        src_dir = self.chdir(*src_dir_names)
-        dest_dir = self.chdir(*dest_dir_names)
+        
+        prefix, src_dir_names, dest_dir_names = self.split_common_prefix(src_dir_names, dest_dir_names)
+        current = self.chdir(*prefix)
+        
+        src_dir = current.chdir(*src_dir_names)
+        dest_dir = current.chdir(*dest_dir_names)
 
         inode_ptr = src_dir._find_entry(src_name)
         if inode_ptr is None:
@@ -364,8 +381,12 @@ class Directory:  # NOTE: may have errors on '..' or '.' so please use abs path.
         *src_dir_names, src_name = src
         *dest_dir_names, dest_name = dest
 
-        src_dir = self.chdir(*src_dir_names)
-        dest_dir = self.chdir(*dest_dir_names)
+        prefix, src_dir_names, dest_dir_names = self.split_common_prefix(src_dir_names, dest_dir_names)
+        current = self.chdir(*prefix)
+        
+        src_dir = current.chdir(*src_dir_names)
+        dest_dir = current.chdir(*dest_dir_names)
+
 
         if overwrite:
             dest_dir.remove(
@@ -418,9 +439,12 @@ class Directory:  # NOTE: may have errors on '..' or '.' so please use abs path.
         chunk_size: int | None = None,
     ) -> None:
         *dest_dir_names, dest_dir_name = dest
-
-        src_dir = self.chdir(*src)
-        dest_parent_dir = self.chdir(*dest_dir_names)
+        
+        prefix, src, dest_dir_names = self.split_common_prefix(src, dest_dir_names)
+        current = self.chdir(*prefix)
+        
+        src_dir = current.chdir(*src)
+        dest_parent_dir = current.chdir(*dest_dir_names)
         dest_dir = dest_parent_dir.mkdir(dest_dir_name, exist_ok=True)
 
         def copy_tree_recursive(src_dir: "Directory", dest_dir: "Directory"):
