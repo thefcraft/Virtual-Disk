@@ -1,7 +1,7 @@
 from enum import Flag, auto
 from io import SEEK_CUR, SEEK_END, SEEK_SET, BytesIO
 from types import TracebackType
-from typing import ByteString, Iterable, NamedTuple, Self, TypeAlias
+from typing import ByteString, Iterable, Literal, NamedTuple, Self, TypeAlias
 
 from .config import Config
 from .constants import MAX_NAME_LEN
@@ -481,8 +481,17 @@ class Directory:  # NOTE: may have errors on '..' or '.' so please use abs path.
         self._write_self_inode_back()
         return self.__class__._InodeResult(inode=inode, inode_ptr=inode_ptr)
 
-    def open(self, name: bytes, mode: FileMode = FileMode.READ) -> "FileIO":
+    def open(
+        self, name: bytes, mode: FileMode | Literal["rb", "wb"] = FileMode.READ
+    ) -> "FileIO":
         # TODO: prevend from opening same file multiple times maybe raise error, may need global state?
+        if isinstance(mode, str):
+            if mode == "rb":
+                mode = FileMode.READ
+            elif mode == "wb":
+                mode = FileMode.WRITE | FileMode.CREATE
+            else:
+                raise ValueError(f"Invalid mode: {mode}.")
         inode_ptr = self._find_entry(name)
         if inode_ptr is None:
             if not mode & FileMode.CREATE:
